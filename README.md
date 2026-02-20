@@ -40,3 +40,36 @@ python -m venv venv
 pip install cmake
 pip install dlib
 pip install face-recognition opencv-python numpy scipy
+```
+
+### 3. Preparación de la Base de Datos
+Debes crear la estructura de tablas antes de iniciar el sistema por primera vez:
+
+```
+python init_db.py
+```
+## 🖥️ Modo de Uso (Paso a Paso)
+Para una experiencia completa y profesional, utiliza el panel de control centralizado:
+```
+python app_biometrica.py
+```
+
+
+## 4. Flujo de Trabajo Recomendado:
+Registro de Usuario: Haz clic en el botón "REGISTRAR USUARIO". Se abrirá la cámara; ingresa tu nombre en la terminal y presiona la tecla 'S' cuando tu rostro esté encuadrado para guardar tu firma biométrica en la base de datos.
+
+Monitor de Acceso: Haz clic en "INICIAR MONITOR". El sistema mostrará un aviso en color rojo: "VALIDANDO: PARPADEE PARA ENTRAR".
+
+Validación (Antispoofing): Parpadea de forma natural frente a la cámara. El algoritmo detectará el movimiento de tus párpados, el recuadro cambiará a VERDE y mostrará tu nombre con la etiqueta "REAL".
+
+Registro de Log: Al ser reconocido, el sistema guardará automáticamente tu entrada en la tabla de historial de SQLite.
+
+Historial: Haz clic en "VER HISTORIAL" para consultar la lista de personas que han accedido con su respectiva fecha y hora.
+
+💡 Nota Importante: Para cerrar las ventanas de la cámara de forma segura, presiona la tecla ESC.
+
+### Desarrollado por: Carlos Granados Montoya
+
+### Institución: Tecnológico Superior del Occidente del Estado de Hidalgo (ITSOEH)
+
+### Carrera: Ingeniería en Tecnologías de la Información y Comunicaciones
