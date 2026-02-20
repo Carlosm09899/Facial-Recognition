@@ -4,6 +4,7 @@ import sqlite3
 import numpy as np
 import io
 from scipy.spatial import distance as dist
+from datetime import datetime 
 
 # ==========================================
 # CONFIGURACIÓN DE OPTIMIZACIÓN
@@ -13,7 +14,7 @@ EYE_AR_CONSEC_FRAMES = 3
 COUNTER = 0
 PARPADEO_DETECTADO = False
 PROCESAR_ESTE_FRAME = 0
-ULTIMA_UBICACION = [] # Para que el cuadro no parpadee
+ULTIMA_UBICACION = [] 
 ULTIMO_NOMBRE = "DESCONOCIDO"
 
 def eye_aspect_ratio(eye):
@@ -28,21 +29,42 @@ def convertir_array(blob):
     return np.load(out).astype(np.float64)
 
 def registrar_acceso_en_db(nombre):
+    """Guarda el log de acceso con la hora local de México"""
     try:
+        # Obtenemos la hora exacta de tu MSI
+        ahora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
         conn = sqlite3.connect('usuarios_biometria.db')
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO historial_accesos (nombre) VALUES (?)", (nombre,))
+        
+        # Enviamos 'ahora' manualmente para evitar el horario de Londres (UTC)
+        cursor.execute("INSERT INTO historial_accesos (nombre, fecha) VALUES (?, ?)", 
+                       (nombre, ahora))
+        
         conn.commit()
         conn.close()
+        print(f"LOG: Acceso guardado para {nombre} a las {ahora}")
     except Exception as e:
-        print(f"Error DB: {e}")
+        print(f"Error al escribir historial: {e}")
 
 # ==========================================
-# NÚCLEO CON CUADRO SÓLIDO
+# NÚCLEO CON CUADRO SÓLIDO Y AUTO-REPARACIÓN
 # ==========================================
 def iniciar_sistema():
     global COUNTER, PARPADEO_DETECTADO, PROCESAR_ESTE_FRAME, ULTIMA_UBICACION, ULTIMO_NOMBRE
     
+    # --- BLOQUE DE AUTO-REPARACIÓN DE DB ---
+    try:
+        conn = sqlite3.connect('usuarios_biometria.db')
+        cursor = conn.cursor()
+        # Intentamos agregar la columna fecha por si no existe
+        cursor.execute("ALTER TABLE historial_accesos ADD COLUMN fecha TEXT")
+        conn.commit()
+        conn.close()
+    except:
+        pass # Si ya existe, no hace nada
+
+    # Carga de datos
     conn = sqlite3.connect('usuarios_biometria.db')
     cursor = conn.cursor()
     cursor.execute("SELECT nombre, encoding FROM rostros")
@@ -75,13 +97,12 @@ def iniciar_sistema():
 
         # 2. RECONOCIMIENTO (Lógica de Persistencia)
         if PARPADEO_DETECTADO:
-            # Solo procesamos reconocimiento cada 3 frames
             if PROCESAR_ESTE_FRAME % 3 == 0:
                 locs = face_recognition.face_locations(rgb_small_frame, model="hog")
                 encs = face_recognition.face_encodings(rgb_small_frame, locs)
                 
                 if locs:
-                    ULTIMA_UBICACION = locs # Guardamos la posición
+                    ULTIMA_UBICACION = locs 
                     for encoding in encs:
                         distancias = face_recognition.face_distance(encodings_db, encoding)
                         if len(distancias) > 0:
@@ -94,7 +115,6 @@ def iniciar_sistema():
                             else:
                                 ULTIMO_NOMBRE = "DESCONOCIDO"
 
-            # DIBUJAR SIEMPRE (Usa la última ubicación guardada para evitar parpadeo)
             for (top, right, bottom, left) in ULTIMA_UBICACION:
                 top, right, bottom, left = top*4, right*4, bottom*4, left*4
                 cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
@@ -103,13 +123,13 @@ def iniciar_sistema():
             
             if not face_landmarks_list:
                 PARPADEO_DETECTADO = False
-                ULTIMA_UBICACION = [] # Limpiamos si te quitas de la cámara
+                ULTIMA_UBICACION = [] 
         else:
             cv2.putText(frame, "VALIDANDO: PARPADEE PARA ENTRAR", (30, 30), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
         PROCESAR_ESTE_FRAME += 1
-        cv2.imshow("Acceso ITSOEH - Sólido", frame)
+        cv2.imshow("Acceso ITSOEH - Solido", frame)
         if cv2.waitKey(1) == 27: break
 
     cam.release()
